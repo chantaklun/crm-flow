@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CalendarClock, ListTodo } from "lucide-react";
+import { Users, CalendarClock, ListTodo, UserPlus, TrendingUp, Headphones } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { dummyCustomers, dummyAppointments, dummyTodos } from "@/lib/data";
+import { dummyCustomers, dummyAppointments, dummyTodos, dummyLeads, dummyOpportunities, dummyCases } from "@/lib/data";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,16 @@ export default function DashboardPage() {
     (apt) => apt.date >= new Date()
   ).length;
   const pendingTodos = dummyTodos.filter((todo) => !todo.completed).length;
+  const activeLeads = dummyLeads.filter((lead) => lead.status !== 'unqualified').length;
+  const openOpportunities = dummyOpportunities.filter(
+    (opp) => !opp.stage.startsWith('closed')
+  ).length;
+  const totalOpportunityValue = dummyOpportunities
+    .filter((opp) => !opp.stage.startsWith('closed'))
+    .reduce((sum, opp) => sum + opp.value, 0);
+  const openCases = dummyCases.filter(
+    (c) => c.status !== 'closed' && c.status !== 'resolved'
+  ).length;
 
   const summaryCards = [
     {
@@ -21,11 +31,33 @@ export default function DashboardPage() {
       aiHint: "customer data",
     },
     {
+      title: "Active Leads",
+      value: activeLeads,
+      icon: UserPlus,
+      href: "/leads",
+      aiHint: "lead tracking",
+    },
+    {
+      title: "Open Opportunities",
+      value: openOpportunities,
+      subtitle: `$${(totalOpportunityValue / 1000).toFixed(0)}K`,
+      icon: TrendingUp,
+      href: "/opportunities",
+      aiHint: "sales pipeline",
+    },
+    {
       title: "Upcoming Appointments",
       value: upcomingAppointments,
       icon: CalendarClock,
       href: "/appointments",
       aiHint: "schedule event",
+    },
+    {
+      title: "Open Cases",
+      value: openCases,
+      icon: Headphones,
+      href: "/cases",
+      aiHint: "support tickets",
     },
     {
       title: "Pending To-Do's",
@@ -53,6 +85,11 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{cardItem.value}</div>
+              {cardItem.subtitle && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {cardItem.subtitle}
+                </div>
+              )}
               <Link href={cardItem.href} passHref legacyBehavior>
                 <Button variant="link" className="p-0 h-auto text-xs text-muted-foreground hover:text-primary">
                   View Details &rarr;
@@ -82,7 +119,16 @@ export default function DashboardPage() {
               <Link href="/customers">Add New Customer</Link>
             </Button>
             <Button variant="outline" asChild>
+              <Link href="/leads">Add New Lead</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/opportunities">Create Opportunity</Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href="/appointments">Schedule Appointment</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/cases">Create Case</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/todos">Create To-Do</Link>
