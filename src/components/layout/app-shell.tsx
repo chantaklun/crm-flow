@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Briefcase, LayoutDashboard, Users, CalendarDays, ListChecks, Menu as MenuIcon } from 'lucide-react';
+import { Briefcase, LayoutDashboard, Users, CalendarDays, ListChecks, Menu as MenuIcon, UserPlus, TrendingUp, Headphones } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -29,7 +29,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, dataAiHint: "dashboard overview" },
   { href: '/customers', label: 'Customers', icon: Users, dataAiHint: "customer list" },
+  { href: '/leads', label: 'Leads', icon: UserPlus, dataAiHint: "lead management" },
+  { href: '/opportunities', label: 'Opportunities', icon: TrendingUp, dataAiHint: "sales pipeline" },
   { href: '/appointments', label: 'Appointments', icon: CalendarDays, dataAiHint: "schedule calendar" },
+  { href: '/cases', label: 'Cases', icon: Headphones, dataAiHint: "support cases" },
   { href: '/todos', label: 'To-Do List', icon: ListChecks, dataAiHint: "task manager" },
 ];
 
