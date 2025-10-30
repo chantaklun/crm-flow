@@ -53,6 +53,29 @@ The project is organized as follows:
 *   **Type Safety:** TypeScript
 *   **Date Handling:** date-fns
 
+## 🚀 Production Readiness Program
+
+**NEW:** This CRM is undergoing a comprehensive production scale initiative to support 10,000 concurrent users with enterprise-level reliability, security, and performance.
+
+**Program Goals:**
+- 99.9% availability with <300ms response times
+- Azure-ready deployment with autoscaling
+- Core Web Vitals compliance (LCP <2.5s, FID <100ms, CLS <0.1)
+- Enterprise security (CSP, WAF, secrets management)
+- Comprehensive observability and SLO monitoring
+
+**📖 Program Documentation:** See [`docs/program/`](./docs/program/) for complete details:
+- [Executive Summary](./docs/program/EXECUTIVE_SUMMARY.md) - Quick overview for stakeholders
+- [Program Charter](./docs/program/CHARTER.md) - Complete scope, SLOs, and success criteria
+- [Epic Specifications](./docs/program/EPICS.md) - 6 epics with acceptance criteria
+- [30-Day Milestone Plan](./docs/program/MILESTONE_PLAN.md) - Day-by-day execution plan
+- [Sub-Agent Specifications](./docs/program/SUB_AGENTS.md) - Specialized agent definitions
+
+**Current Status:** ✅ Day 0 Complete - Foundation documentation delivered  
+**Next Milestone:** Day 1 - Repository inventory and baseline analysis
+
+---
+
 ## Comparison to Microsoft Dynamics 365
 
 This CRM provides functionality similar to commercial solutions:
