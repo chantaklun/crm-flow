@@ -1,0 +1,355 @@
+name: Project Automation
+
+# Purpose: Synchronize GitHub issues/PRs with Projects v2 board
+# Triggers on PR lifecycle events and issue updates to maintain project status
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed, converted_to_draft]
+  issues:
+    types: [opened, reopened, closed, labeled, unlabeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  sync-project:
+    name: Sync to Projects v2
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Add item to project
+        if: github.event.action == 'opened'
+        uses: actions/add-to-project@v0.5.0
+        with:
+          project-url: https://github.com/orgs/chantaklun/projects/1
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+      
+      - name: Update status on PR lifecycle
+        if: github.event.pull_request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const prState = context.payload.pull_request.state;
+            const prDraft = context.payload.pull_request.draft;
+            const prMerged = context.payload.pull_request.merged;
+            
+            let newStatus = 'In Progress';
+            
+            if (prMerged) {
+              newStatus = 'Done';
+            } else if (prState === 'closed') {
+              newStatus = 'Archived';
+            } else if (!prDraft && context.payload.action === 'ready_for_review') {
+              newStatus = 'In Review';
+            } else if (prDraft) {
+              newStatus = 'In Progress';
+            }
+            
+            console.log(`Setting PR status to: ${newStatus}`);
+            // Note: Actual GraphQL mutation would be implemented here
+            // This is a placeholder for the project update logic
+      
+      - name: Update status on issue lifecycle
+        if: github.event.issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const issueState = context.payload.issue.state;
+            let newStatus = 'Backlog';
+            
+            if (issueState === 'closed') {
+              newStatus = 'Archived';
+            }
+            
+            console.log(`Setting issue status to: ${newStatus}`);
+            // Note: Actual GraphQL mutation would be implemented here
+      
+      - name: Label-based epic assignment
+        if: github.event.action == 'labeled'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const label = context.payload.label.name;
+            const epicMapping = {
+              'epic:production-readiness': 'Production Readiness',
+              'epic:azure-baseline': 'Azure Baseline',
+              'epic:data-api-scale': 'Data/API Scale',
+              'epic:observability-quality': 'Observability & Quality',
+              'epic:security-compliance': 'Security & Compliance',
+              'epic:product-enhancements': 'Product Enhancements'
+            };
+            
+            const epic = epicMapping[label];
+            if (epic) {
+              console.log(`Assigning to epic: ${epic}`);
+              // Note: Actual GraphQL mutation would be implemented here
+            }
+      
+      - name: Auto-label high risk items
+        if: github.event.issue || github.event.pull_request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = context.payload.issue?.body || context.payload.pull_request?.body || '';
+            const title = context.payload.issue?.title || context.payload.pull_request?.title || '';
+            
+            const highRiskKeywords = ['breaking', 'security', 'critical', 'data-migration', 'schema-change'];
+            const isHighRisk = highRiskKeywords.some(keyword => 
+              title.toLowerCase().includes(keyword) || body.toLowerCase().includes(keyword)
+            );
+            
+            if (isHighRisk) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue?.number || context.payload.pull_request?.number,
+                labels: ['high-risk']
+              });
+            }
+
+  update-project-fields:
+    name: Update Project Fields
+    runs-on: ubuntu-latest
+    if: github.event.pull_request || github.event.issue
+    
+    steps:
+      - name: Get project data
+        id: get-project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            // Query to get project ID and field IDs
+            const query = `
+              query($org: String!, $number: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    id
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2Field {
+                          id
+                          name
+                        }
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            
+            // Note: Replace with actual org and project number
+            // const result = await github.graphql(query, {
+            //   org: 'chantaklun',
+            //   number: 1
+            // });
+            
+            console.log('Project data would be fetched here');
+            return {};
+      
+      - name: Update milestone from labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const labels = context.payload.issue?.labels || context.payload.pull_request?.labels || [];
+            const milestoneMapping = {
+              'pi-0': 'PI-0: Foundation',
+              'pi-1': 'PI-1: Hardening',
+              'pi-2': 'PI-2: Azure & Observability',
+              'pi-3': 'PI-3: Scale & Quality'
+            };
+            
+            for (const label of labels) {
+              const milestone = milestoneMapping[label.name];
+              if (milestone) {
+                console.log(`Setting milestone to: ${milestone}`);
+                // GraphQL mutation would be implemented here
+                break;
+              }
+            }
+      
+      - name: Calculate and update risk
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const labels = context.payload.issue?.labels || context.payload.pull_request?.labels || [];
+            const body = context.payload.issue?.body || context.payload.pull_request?.body || '';
+            
+            let riskLevel = 'Low';
+            
+            // Check for risk indicators
+            if (labels.some(l => l.name === 'high-risk' || l.name === 'breaking-change')) {
+              riskLevel = 'High';
+            } else if (labels.some(l => l.name === 'dependencies' || l.name === 'security')) {
+              riskLevel = 'Medium';
+            } else if (body.includes('### Risk') && body.includes('High')) {
+              riskLevel = 'High';
+            } else if (body.includes('### Risk') && body.includes('Medium')) {
+              riskLevel = 'Medium';
+            }
+            
+            console.log(`Calculated risk level: ${riskLevel}`);
+            // GraphQL mutation would be implemented here
+
+  notify-blockers:
+    name: Notify on Blocked Items
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'blocked') || contains(github.event.pull_request.labels.*.name, 'blocked')
+    
+    steps:
+      - name: Post blocker notification
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const itemNumber = context.payload.issue?.number || context.payload.pull_request?.number;
+            const itemType = context.payload.issue ? 'Issue' : 'Pull Request';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: itemNumber,
+              body: `⚠️ **Blocked Item Detected**\n\nThis ${itemType} has been marked as blocked. Please:\n\n1. Document the blocking issue in a comment\n2. Tag responsible parties\n3. Escalate to program lead if blocker persists >24h\n\n@program-orchestrator`
+            });
+      
+      - name: Update project status to blocked
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            console.log('Setting project status to: Blocked');
+            // GraphQL mutation would be implemented here
+
+  check-slo-impact:
+    name: Check SLO Impact
+    runs-on: ubuntu-latest
+    if: github.event.pull_request
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Analyze changed files
+        id: analyze
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            
+            const sloImpactPaths = {
+              'Performance': ['src/app', 'next.config', 'middleware'],
+              'Reliability': ['src/lib', 'src/hooks', 'error'],
+              'Security': ['auth', 'api', 'middleware'],
+              'Cost': ['azure', 'infrastructure', 'config']
+            };
+            
+            let impacts = new Set();
+            
+            for (const file of files) {
+              for (const [impact, paths] of Object.entries(sloImpactPaths)) {
+                if (paths.some(path => file.filename.includes(path))) {
+                  impacts.add(impact);
+                }
+              }
+            }
+            
+            const sloImpact = impacts.size > 1 ? 'Multiple' : 
+                             impacts.size === 1 ? Array.from(impacts)[0] : 
+                             'None';
+            
+            console.log(`Detected SLO Impact: ${sloImpact}`);
+            core.setOutput('slo-impact', sloImpact);
+            return sloImpact;
+      
+      - name: Update SLO impact field
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const sloImpact = '${{ steps.analyze.outputs.slo-impact }}';
+            console.log(`Updating SLO Impact to: ${sloImpact}`);
+            // GraphQL mutation would be implemented here
+      
+      - name: Comment on high-impact PRs
+        if: steps.analyze.outputs.slo-impact != 'None'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const sloImpact = '${{ steps.analyze.outputs.slo-impact }}';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `📊 **SLO Impact Detected: ${sloImpact}**\n\nThis PR may affect service level objectives. Please ensure:\n\n- [ ] Performance testing completed\n- [ ] Load test results attached\n- [ ] Monitoring/alerting updated\n- [ ] Rollback plan documented`
+            });
+
+  generate-metrics:
+    name: Generate Project Metrics
+    runs-on: ubuntu-latest
+    # Run daily at 9 AM UTC
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Query project data
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            // Query project for metrics calculation
+            const query = `
+              query($org: String!, $number: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        fieldValues(first: 20) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              name
+                              field {
+                                ... on ProjectV2SingleSelectField {
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            
+            console.log('Would generate metrics dashboard here');
+            // Calculate:
+            // - Epic completion percentage
+            // - Items in each status
+            // - Risk distribution
+            // - SLO impact breakdown
+            // - Velocity trends
